@@ -10,6 +10,8 @@
 
       Twilio.Device.ready(function (device) {
         log('Twilio.Device Ready!');
+        document.getElementById('button-hold').style.display = 'none';
+        document.getElementById('button-reconnect').style.display = 'none';
         document.getElementById('call-controls').style.display = 'block';
       });
 
@@ -21,12 +23,14 @@
         log('Successfully established call!');
         document.getElementById('button-call').style.display = 'none';
         document.getElementById('button-hangup').style.display = 'inline';
+        document.getElementById('button-hold').style.display = 'inline';
       });
 
       Twilio.Device.disconnect(function (conn) {
         log('Call ended.');
         document.getElementById('button-call').style.display = 'inline';
         document.getElementById('button-hangup').style.display = 'none';
+        document.getElementById('button-hold').style.display = 'none';
       });
 
       Twilio.Device.incoming(function (conn) {
@@ -58,6 +62,23 @@
     console.log('Calling ' + params.To + '...');
     Twilio.Device.connect(params);
   };
+
+  var holdButton = document.getElementById('button-hold'),
+      reconnectButton = document.getElementById('button-reconnect');
+
+  // Bind button to put caller on hold
+  holdButton.onclick = function () {
+    holdButton.style.display = 'none';
+    reconnectButton.style.display = 'inline';
+    $.post('/hold/' + Twilio.Device.activeConnection().parameters.CallSid);
+  }
+
+  // Bind button to take caller off hold
+  reconnectButton.onclick = function () {
+    holdButton.style.display = 'inline';
+    reconnectButton.style.display = 'none';
+    $.post('/reconnect/' + Twilio.Device.activeConnection().parameters.CallSid);
+  }
 
   // Bind button to hangup call
   document.getElementById('button-hangup').onclick = function () {
