@@ -34,61 +34,59 @@ get '/token' do
 end
 
 post '/voice' do
-  twiml = Twilio::TwiML::Response.new do |r|
-    if params['To'] and params['To'] != ''
-      r.Dial callerId: ENV['TWILIO_CALLER_ID'], action: "/holding" do |d|
-        # wrap the phone number or client name in the appropriate TwiML verb
-        # by checking if the number given has only digits and format symbols
-        if params['To'] =~ /^[\d\+\-\(\) ]+$/
-          d.Number params['To']
-        else
-          d.Client params['To']
-        end
-      end
-    else
-      r.Say "Thanks for calling!"
-    end
-  end
-
   content_type 'text/xml'
-  twiml.text
+  "
+  <Response>
+    <Dial callerId='#{ENV['TWILIO_CALLER_ID']}' action='/holding'>
+      <Number>#{params['To']}</Number>
+    </Dial>
+  </Response>
+  "
 end
 
 post '/hold/:call_sid' do
+  # Get the caller's Call Sid. This is the Twilio Client side
   parent_call_sid = params[:call_sid]
+  # Find the child call, this is the caller on the phone
   child_call = client.calls.list(:parent_call_sid => parent_call_sid).first
+  # Redirect the child call to the TwiML to enqueue it
   child_call.update(:url => "http://philnash.ngrok.io/enqueue")
   200
 end
 
 post '/holding' do
-  twiml = Twilio::TwiML::Response.new do |r|
-    r.Say 'You have a caller on hold...'
-    r.Redirect '/holding'
-  end
   content_type 'text/xml'
-  twiml.text
+  "
+  <Response>
+    <Say>You have a caller on hold...</Say>
+    <Redirect>/holding</Redirect>
+  </Response>
+  "
 end
 
 post '/enqueue' do
-  twiml = Twilio::TwiML::Response.new do |r|
-    r.Enqueue "ON_HOLD", waitUrl: "http://twimlets.com/holdmusic?Bucket=com.twilio.music.guitars"
-  end
   content_type 'text/xml'
-  twiml.text
+  "
+  <Response>
+    <Enqueue waitUrl='http://twimlets.com/holdmusic?Bucket=com.twilio.music.guitars'>ON_HOLD</Enqueue>
+  </Response>
+  "
 end
 
 post '/reconnect/:call_sid' do
+  # Again, we use the Twilio Client call sid, but this time we direct the call
+  # to dial the queue where our caller who is on hold is.
   client.calls.get(params[:call_sid]).update(:url => 'http://philnash.ngrok.io/dequeue')
   200
 end
 
 post '/dequeue' do
-  twiml = Twilio::TwiML::Response.new do |r|
-    r.Dial action: "/holding" do |d|
-      d.Queue "ON_HOLD"
-    end
-  end
   content_type 'text/xml'
-  twiml.text
+  "
+  <Response>
+    <Dial action='/holding'>
+      <Queue>ON_HOLD</Queue>
+    </Dial>
+  </Response>
+  "
 end
